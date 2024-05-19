@@ -1,4 +1,4 @@
-use std::{io::{Read, Write}, net::{TcpListener, TcpStream}};
+use std::{io::{Read, Write}, net::{TcpListener, TcpStream}, thread};
 use std::io;
 
 fn handle_client(mut stream: TcpStream) -> io::Result<()> {
@@ -24,7 +24,7 @@ fn main() -> io::Result<()> {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                handle_client(stream)?;
+                thread::spawn(|| handle_client(stream));
             }
             Err(e) => {
                 println!("error: {}", e);
