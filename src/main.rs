@@ -1,5 +1,7 @@
 mod resp;
+mod storage;
 use resp::Value;
+use storage::Storage;
 use tokio::net::{TcpListener, TcpStream};
 use std::error::Error;
 use anyhow::Result;
@@ -23,7 +25,7 @@ fn extract_command(value: Value) -> Result<(String, Vec<Value>)> {
     }
 }
 
-async fn handle_client(stream: TcpStream) {
+async fn handle_client(stream: TcpStream, mut storage: Storage) {
     let mut handler = resp::RespHandler::new(stream);
     loop {
         let value = handler.read_value().await.unwrap();
@@ -34,6 +36,19 @@ async fn handle_client(stream: TcpStream) {
             match command.as_str() {
                 "PING" => Value::SimpleString("PONG".to_string()),
                 "ECHO" => args.first().unwrap().clone(),
+                "GET" => {
+                    let key = unpack_bulk_str(args.first().unwrap().clone()).unwrap();
+                    match storage.get(&key) {
+                        Some(value) => Value::BulkString(value.clone()),
+                        None => Value::SimpleString("$-1\r\n".to_string()),
+                    }
+                },
+                "SET" => {
+                    let key = unpack_bulk_str(args.first().unwrap().clone()).unwrap();
+                    let value = unpack_bulk_str(args.get(1).unwrap().clone()).unwrap();
+                    storage.set(key, value);
+                    Value::SimpleString("OK".to_string())
+                },
                 c => panic!("Cannot handle command {}", c),
             }
         } else {
@@ -51,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     loop {
         match listener.accept().await {
             Ok((stream, _)) => {
-                tokio::spawn(async move { handle_client(stream).await});
+                tokio::spawn(async move { handle_client(stream, Storage::new()).await});
             }
             Err(e) => {
                 eprintln!("Error: {:?}", e);
