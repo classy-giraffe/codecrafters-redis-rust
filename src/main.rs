@@ -29,7 +29,6 @@ async fn handle_client(stream: TcpStream, mut storage: Storage) {
     let mut handler = resp::RespHandler::new(stream);
     loop {
         let value = handler.read_value().await.unwrap();
-        println!("Got value {:?}", value);
         let response = if let Some(v) = value {
             let (command, args) = extract_command(v).unwrap();
             println!("Command: {}, Args: {:?}", command, args);
@@ -38,7 +37,7 @@ async fn handle_client(stream: TcpStream, mut storage: Storage) {
                 "ECHO" => args.first().unwrap().clone(),
                 "GET" => {
                     let key = unpack_bulk_str(args.first().unwrap().clone()).unwrap();
-                    match storage.get(&key) {
+                    match storage.get(key) {
                         Some(value) => Value::BulkString(value.clone()),
                         None => Value::SimpleString("$-1\r\n".to_string()),
                     }
@@ -62,7 +61,6 @@ async fn handle_client(stream: TcpStream, mut storage: Storage) {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let listener = TcpListener::bind("127.0.0.1:6379").await?;
-    // write basic event loop with for loop
     loop {
         match listener.accept().await {
             Ok((stream, _)) => {

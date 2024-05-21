@@ -11,8 +11,8 @@ impl Storage {
         }
     }
 
-    pub fn get(&self, key: &str) -> Option<&String> {
-        self.data.get(key)
+    pub fn get(&self, key: String) -> Option<&String> {
+        self.data.get(&key)
     }
 
     pub fn set(&mut self, key: String, value: String) {
